@@ -2,18 +2,16 @@
 #include <winsock2.h> 
 #include<iostream>
 #include<string>
+#include<thread>
 #pragma comment (lib, "ws2_32.lib")  //加载 ws2_32.dll  
 
 #define BUF_SIZE 10086
-using namespace std;
-/*
-
-套路。。。
-
-
-*/
-
-int main() {
+//直接用std好像会出现bug
+using std::cout;
+using std::thread;
+//因为socket实际上是int变量，故可直接返回int
+int make_socket(int port)
+{
 	//初始化dll
 	WSADATA wsaData;
 	WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -25,28 +23,37 @@ int main() {
 	sockaddr_in sockAddr;
 	memset(&sockAddr, 0, sizeof(sockAddr));  //每个字节都用0填充  
 	sockAddr.sin_family = PF_INET;  //使用IPv4地址  
-	sockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");  //回送地址 
-	sockAddr.sin_port = htons(1234);  //端口  
+	//sockAddr.sin_addr.s_addr = inet_addr("127.0.0.1");  //回送IP地址 
+	sockAddr.sin_addr.s_addr = INADDR_ANY;			//服务器直接默认本地ip
+	sockAddr.sin_port = htons(port);  //端口  
 	bind(servSock, (SOCKADDR*)&sockAddr, sizeof(SOCKADDR));
 
 	//进入监听状态  
 	listen(servSock, 20);
+	return servSock;
+}
 
-	//接收客户端请求  
-	SOCKADDR clntAddr;
-	int nSize = sizeof(SOCKADDR);
+void handle_accept(int socket_feed)
+{
+	cout <<"线程为:"<<std::this_thread::get_id() << std::endl;
+
 	char buffer[BUF_SIZE] = { 0 };  //缓冲区  
-	while (1) {
-		SOCKET clntSock = accept(servSock, (SOCKADDR*)&clntAddr, &nSize);
-		int strLen = recv(clntSock, buffer, BUF_SIZE, 0);  //接收客户端发来的数据  
-		send(clntSock, buffer, strLen, 0);  //将数据原样返回  
-
-		closesocket(clntSock);  //关闭套接字  
-		memset(buffer, 0, BUF_SIZE);  //重置缓冲区  
-	}
-
+	int strLen = recv(socket_feed, buffer, BUF_SIZE, 0);  //接收客户端发来的数据  
+	send(socket_feed, buffer, strLen, 0);  //将数据原样返回  
+	closesocket(socket_feed);  //关闭套接字  
+	memset(buffer, 0, BUF_SIZE);  //重置缓冲区  
 	//关闭套接字  
-	closesocket(servSock);
+	closesocket(socket_feed);
+}
+
+int main() {
+	int servSock = make_socket(1234);
+	while (true)
+	{
+		int socket_feed= accept(servSock, nullptr, nullptr);
+		thread t(handle_accept, socket_feed);
+		t.detach();			//分离线程
+	}
 
 	//终止 DLL 的使用  
 	WSACleanup();

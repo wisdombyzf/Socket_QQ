@@ -5,7 +5,11 @@
 #include <WinSock2.h>  
 #pragma comment(lib, "ws2_32.lib")  //加载 ws2_32.dll  
 #define BUF_SIZE 10086
-using namespace std;
+
+using std::cout;
+using std::cin;
+using std::endl;
+
 /*
 WinSock2.h 中的一些宏定义
 
